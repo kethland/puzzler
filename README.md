@@ -1,28 +1,19 @@
- Liber Primus Puzzle Solver
-This is a Python program that attempts to solve the puzzles found in the mysterious Liber Primus book, also known as the "Cryptic Manuscript".
+GW - Futhark Decryption Model
+This is a convolutional neural network model trained on the Futhark alphabet to decrypt messages encoded using Futhark. The model was trained using two datasets: RIMES and FUTHARK1.
 
-Getting Started
-Prerequisites
-To run this program, you need to have Python 3.x installed on your computer.
+Installation
+To use this model, clone this repository and install the required packages by running:
 
-Installing
-Clone this repository or download the ZIP file and extract it to a folder on your computer.
-Open a terminal or command prompt and navigate to the folder where you extracted the files.
-Install the required Python packages by running the following command:
 Copy code
 pip install -r requirements.txt
 Usage
-Put the image file you want to solve in the images folder.
-In the terminal or command prompt, navigate to the folder where you extracted the files.
-Run the following command:
-Copy code
-jupyter notebook
-A web browser window should open. Click on the Liber Primus Puzzle Solver.ipynb file to open it.
-Follow the instructions in the notebook to solve the puzzle.
-Contributing
-Pull requests are welcome. For major changes, please open an issue first to discuss what you would like to change.
+To use the model, simply run the main.py script. This script loads the trained model and performs decryption on a pre-defined message. You can modify the message to be decrypted by editing the message variable in the main function.
 
-Please make sure to update tests as appropriate.
+Contributing
+Contributions to this project are welcome. If you find any issues, please create an issue on this repository. If you want to contribute, please create a pull request.
+
+Credits
+This project was created by Kethland. The datasets used to train the model were obtained from RIMES and FUTHARK1. The decryption function was adapted from the Google Spreadsheet created by the Cicada 3301 group.
 
 License
-This project is licensed under the MIT License - see the LICENSE file for details
+This project is licensed under the MIT License.
