@@ -5,103 +5,99 @@ from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.layers import Input, Conv2D, MaxPooling2D, Dropout, BatchNormalization, Dense, Flatten, concatenate
 from data_loader import load_data
 
-def conv2d_bn(x, filters, kernel_size, padding='same', strides=(1, 1), activation='relu', name=None):
-    """Helper function to perform convolution followed by batch normalization"""
-    x = Conv2D(filters, kernel_size, padding=padding, strides=strides, activation=activation, name=name)(x)
-    x = BatchNormalization()(x)
-    return x
-def inception_module(x, params):
+import os
+import numpy as np
+import requests
+from PIL import Image
+from io import BytesIO
+from tensorflow.keras.preprocessing.image import img_to_array
+from tensorflow.keras.applications.inception_v3 import preprocess_input
+from tensorflow.keras.models import load_model
+from googletrans import Translator
+
+
+# Load the Inception V3.5 model
+model = load_model('inception_v3.5.h5')
+
+
+def load_image_from_url(url):
     """
-    Implementation of an Inception module.
+    Loads an image from a URL and returns it as a NumPy array.
     Args:
-        x: input tensor
-        params: list of parameters defining the module
+        url: The URL of the image to load.
     Returns:
-        output tensor
+        A NumPy array of the loaded image.
     """
-    tower_1 = conv2d_bn(x, params[0], (1, 1))
-
-    tower_2 = conv2d_bn(x, params[1], (1, 1))
-    tower_2 = conv2d_bn(tower_2, params[2], (3, 3))
-
-    tower_3 = conv2d_bn(x, params[3], (1, 1))
-    tower_3 = conv2d_bn(tower_3, params[4], (5, 5))
-
-    tower_4 = MaxPooling2D((3, 3), strides=(1, 1), padding='same')(x)
-    tower_4 = conv2d_bn(tower_4, params[5], (1, 1))
-
-    output = concatenate([tower_1, tower_2, tower_3, tower_4], axis=3)
-    return output
-
-def stage_1(input_img):
-        """Implementation of the first stage of the Inception v1 model"""
-        x = conv2d_bn(input_img, 64, (7, 7), strides=(2, 2))
-        x = MaxPooling2D((3, 3), strides=(2, 2), padding='same')(x)
-        return x  
-
-def stage_2(x):
-    """Implementation of the second stage of the Inception v1 model"""
-    params = [[64, 96, 128, 16, 32, 32],
-              [128, 128, 192, 32, 96, 64]]
-
-    for p in params:
-        x = inception_module(x, p)
-
-    x = MaxPooling2D((3, 3), strides=(2, 2), padding='same')(x)
-    return x
-
-   
-
-def stage_3(x):
-    """Implementation of the third stage of the Inception v1 model"""
-    params = [[192, 96, 208, 16, 48, 64],
-              [160, 112, 224, 24, 64, 64],
-              [128, 128, 256, 24, 64, 64]]
-
-    for p in params:
-        x = inception_module(x, p)
-
-    x = MaxPooling2D((3, 3), strides=(2, 2), padding='same')(x)
-    return x
-
-def stage_4(x):
-    """Implementation of the fourth stage of the Inception v1 model"""
-    params = [[192, 96, 208, 16, 48, 64],
-              [160, 112, 224, 24, 64, 64],
-              [128, 128, 256, 24, 64, 64],
-              [112, 144, 288, 32, 64, 64],
-              [256, 160, 320, 32, 128, 128]]
-
-    for i in range(len(params)):
-        if i == len(params)-1:
-            x = inception_module(x, params[i])
-        else:
-            x = inception_module(x, params[i])
-            x = inception_module(x, params[i])
-
-    x = MaxPooling2D((3, 3), strides=(2, 2), padding='same')(x)
-    return x
+    response = requests.get(url)
+    img = Image.open(BytesIO(response.content))
+    img_array = img_to_array(img)
+    img_array = preprocess_input(img_array)
+    return img_array
 
 
-def inception_v1(input_shape, num_classes):
-    """Implementation of the Inception v1 architecture"""
-    input_img = Input(shape=input_shape)
+def predict_image(url):
+    """
+    Predicts the class of an image from a URL using the Inception V3.5 model.
+    Args:
+        url: The URL of the image to predict.
+    Returns:
+        The predicted class label and probability.
+    """
+    img_array = load_image_from_url(url)
+    img_array = np.expand_dims(img_array, axis=0)
+    pred = model.predict(img_array)[0]
+    label = np.argmax(pred)
+    prob = pred[label]
+    return label, prob
 
-    x = stage_1(input_img)
-    x = stage_2(x)
-    x = stage_3(x)
-    x = stage_4(x)
 
-    # Add a global average pooling layer
-    x = GlobalAveragePooling2D()(x)
+def translate_message(message):
+    """
+    Translates a message from any language to English using Google Translate.
+    Args:
+        message: The message to translate.
+    Returns:
+        The translated message in English.
+    """
+    translator = Translator(service_urls=['translate.google.com'])
+    result = translator.translate(message, dest='en')
+    return result.text
 
-    # Add a fully connected layer with dropout regularization
-    x = Dense(512, activation='relu')(x)
-    x = Dropout(0.5)(x)
 
-    # Add a softmax layer for the output
-    output = Dense(num_classes, activation='softmax')(x)
+def decrypt_message(message):
+    gematria_table = {
+        'ᚠ': 1, 'ᚢ': 2, 'ᚦ': 3, 'ᚨ': 4, 'ᚱ': 5, 'ᚲ': 6, 'ᚷ': 7, 'ᚹ': 8, 'ᚺ': 9,
+        'ᚾ': 10, 'ᛁ': 11, 'ᛃ': 12, 'ᛇ': 13, 'ᛈ': 14, 'ᛉ': 15, 'ᛊ': 16, 'ᛏ': 17, 'ᛒ': 18,
+        'ᛖ': 19, 'ᛗ': 20, 'ᛚ': 21, 'ᛝ': 22, 'ᛞ': 23, 'ᛟ': 24
+    }
+    decrypted_message = ""
+    for char in message:
+        if char in gematria_table:
+            decrypted_message += chr(gematria_table[char] + 64)
+    return decrypted_message
 
-    model = Model(inputs=input_img, outputs=output)
-    return model
+
+def process_image(url):
+    """
+    Processes an image from a URL and returns the decrypted and translated message.
+    Args:
+        url: The URL of the image to process.
+    Returns:
+        The decrypted and translated message.
+    """
+    label, prob = predict_image(url)
+    if label == 0:
+        message = "This is not a valid glyph."
+    else:
+        message = "The glyph represents the letter " + chr(label + 64)
+    decrypted_message = decrypt_message(message)
+    translated_message = translate_message(decrypted_message)
+    return translated_message
+
+
+if __name__ == '__main__':
+    url = input("Enter the URL of the image to process: ")
+    message = process_image(url)
+    print(message)
+
 
