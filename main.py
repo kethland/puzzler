@@ -77,27 +77,18 @@ def decrypt_message(message):
     return decrypted_message
 
 
-def process_image(url):
-    """
-    Processes an image from a URL and returns the decrypted and translated message.
-    Args:
-        url: The URL of the image to process.
-    Returns:
-        The decrypted and translated message.
-    """
-    label, prob = predict_image(url)
-    if label == 0:
+def process_image(image_url, model, modulus=None, substitution_key=None):
+    rune_label, rune_prob = predict_rune(image_url, model)
+    if rune_label == 0:
         message = "This is not a valid glyph."
     else:
-        message = "The glyph represents the letter " + chr(label + 64)
-    decrypted_message = decrypt_message(message)
-    translated_message = translate_message(decrypted_message)
+        message = "The glyph represents the letter " + chr(rune_label + 64)
+    decoded_message = decode_message(message)
+    translated_message = translate_text(decoded_message)
+    if modulus is not None:
+        decrypted_message = modulus_decrypt(translated_message, modulus)
+        translated_message = decrypted_message
+    if substitution_key is not None:
+        decrypted_message = substitution_decrypt(translated_message, substitution_key)
+        translated_message = decrypted_message
     return translated_message
-
-
-if __name__ == '__main__':
-    url = input("Enter the URL of the image to process: ")
-    message = process_image(url)
-    print(message)
-
-
