@@ -1,70 +1,21 @@
-import os
-import tensorflow as tf
-from tensorflow.keras.models import Model
-from tensorflow.keras.optimizers import Adam
-from tensorflow.keras.layers import Input, Conv2D, MaxPooling2D, Dropout, BatchNormalization, Dense, Flatten, concatenate
-from data_loader import load_data
-
-import os
 import numpy as np
 import requests
 from PIL import Image
 from io import BytesIO
-from tensorflow.keras.preprocessing.image import img_to_array
-from tensorflow.keras.applications.inception_v3 import preprocess_input
-from tensorflow.keras.models import load_model
 from googletrans import Translator
 
-
-# Load the Inception V3.5 model
-model = load_model('inception_v3.5.h5')
-
-
-def load_image_from_url(url):
-    """
-    Loads an image from a URL and returns it as a NumPy array.
-    Args:
-        url: The URL of the image to load.
-    Returns:
-        A NumPy array of the loaded image.
-    """
-    response = requests.get(url)
-    img = Image.open(BytesIO(response.content))
-    img_array = img_to_array(img)
-    img_array = preprocess_input(img_array)
+def load_image(url):
+    img_response = requests.get(url)
+    img = Image.open(BytesIO(img_response.content))
+    img_array = np.array(img)
     return img_array
 
-
-def predict_image(url):
-    """
-    Predicts the class of an image from a URL using the Inception V3.5 model.
-    Args:
-        url: The URL of the image to predict.
-    Returns:
-        The predicted class label and probability.
-    """
-    img_array = load_image_from_url(url)
-    img_array = np.expand_dims(img_array, axis=0)
-    pred = model.predict(img_array)[0]
-    label = np.argmax(pred)
-    prob = pred[label]
-    return label, prob
-
-
-def translate_message(message):
-    """
-    Translates a message from any language to English using Google Translate.
-    Args:
-        message: The message to translate.
-    Returns:
-        The translated message in English.
-    """
+def translate_text(text):
     translator = Translator(service_urls=['translate.google.com'])
-    result = translator.translate(message, dest='en')
+    result = translator.translate(text, dest='en')
     return result.text
 
-
-def decrypt_message(message):
+def decode_message(message):
     gematria_table = {
         'ᚠ': 1, 'ᚢ': 2, 'ᚦ': 3, 'ᚨ': 4, 'ᚱ': 5, 'ᚲ': 6, 'ᚷ': 7, 'ᚹ': 8, 'ᚺ': 9,
         'ᚾ': 10, 'ᛁ': 11, 'ᛃ': 12, 'ᛇ': 13, 'ᛈ': 14, 'ᛉ': 15, 'ᛊ': 16, 'ᛏ': 17, 'ᛒ': 18,
@@ -76,13 +27,46 @@ def decrypt_message(message):
             decrypted_message += chr(gematria_table[char] + 64)
     return decrypted_message
 
+import numpy as np
 
-def process_image(image_url, model, modulus=None, substitution_key=None):
-    rune_label, rune_prob = predict_rune(image_url, model)
-    if rune_label == 0:
-        message = "This is not a valid glyph."
-    else:
-        message = "The glyph represents the letter " + chr(rune_label + 64)
+def modulus_decrypt(ciphertext, modulus):
+    decrypted_blocks = []
+    for i, char in enumerate(ciphertext):
+        if char.isalpha():
+            decrypted_char = chr((ord(char) - 65) % modulus[i] + 65)
+        else:
+            decrypted_char = char
+        decrypted_blocks.append(ord(decrypted_char) - 65)
+    
+    # Chinese Remainder Theorem
+    M = np.prod(modulus)
+    decrypted_message = 0
+    for i, b in enumerate(decrypted_blocks):
+        mi = M // modulus[i]
+        mi_inv = pow(mi, -1, modulus[i])
+        decrypted_message += b * mi * mi_inv
+    
+    return ''.join([chr(decrypted_message % 26 + 65)])
+
+
+def substitution_decrypt(ciphertext, substitution_key):
+    decrypted_message = ""
+    for char in ciphertext:
+        if char.isalpha():
+            if char.lower() in substitution_key:
+                decrypted_char = substitution_key[char.lower()]
+                if char.isupper():
+                    decrypted_char = decrypted_char.upper()
+            else:
+                decrypted_char = char
+        else:
+            decrypted_char = char
+        decrypted_message += decrypted_char
+    return decrypted_message
+
+def process_image(image_url, modulus=None, substitution_key=None):
+    img_array = load_image(image_url)
+    message = "The glyph represents the letter " + chr(img_array[0][0][0] + 64)
     decoded_message = decode_message(message)
     translated_message = translate_text(decoded_message)
     if modulus is not None:
